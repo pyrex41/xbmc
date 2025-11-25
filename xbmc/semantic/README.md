@@ -324,6 +324,7 @@ We welcome contributions! Please see:
 
 ## Known Limitations
 
+- **ServiceManager integration:** Semantic services use lazy initialization pattern instead of full ServiceManager registration. This is intentional for the initial PR to minimize core file changes. Future work could add proper lifecycle management.
 - **GPU metrics:** Detailed platform-specific GPU metrics deferred to future release
 - **Build verification:** Full builds require platform-specific toolchains (see cmake/README.md)
 - **Remaining TODOs:** Some low-priority enhancements remain (metadata filtering, audio chunking)
