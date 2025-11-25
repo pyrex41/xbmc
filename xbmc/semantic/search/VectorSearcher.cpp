@@ -12,8 +12,14 @@
 #include "utils/log.h"
 
 #include <algorithm>
-#include <sqlite3.h>
 #include <sstream>
+
+#ifndef HAVE_SQLITE_VEC
+#define HAVE_SQLITE_VEC 0
+#endif
+
+#if HAVE_SQLITE_VEC
+#include <sqlite3.h>
 
 // Forward declaration of sqlite-vec initialization function
 extern "C" {
@@ -21,6 +27,8 @@ extern "C" {
 int sqlite3_vec_init(sqlite3* db, char** pzErrMsg, const void* pApi);
 #endif
 }
+
+#if HAVE_SQLITE_VEC
 
 namespace KODI
 {
@@ -922,3 +930,134 @@ bool CVectorSearcher::GetVector(int64_t chunkId, std::array<float, 384>& embeddi
 
 } // namespace SEMANTIC
 } // namespace KODI
+
+#else
+
+namespace KODI
+{
+namespace SEMANTIC
+{
+namespace
+{
+void LogVectorUnavailable(const char* method)
+{
+  CLog::Log(LOGDEBUG, "CVectorSearcher::{}: sqlite-vec support not available", method);
+}
+} // namespace
+
+CVectorSearcher::CVectorSearcher() = default;
+CVectorSearcher::~CVectorSearcher() = default;
+
+bool CVectorSearcher::InitializeExtension(sqlite3*)
+{
+  LogVectorUnavailable(__func__);
+  return false;
+}
+
+bool CVectorSearcher::CreateVectorTable()
+{
+  LogVectorUnavailable(__func__);
+  return false;
+}
+
+bool CVectorSearcher::InsertVector(int64_t, const std::array<float, 384>&)
+{
+  LogVectorUnavailable(__func__);
+  return false;
+}
+
+bool CVectorSearcher::DeleteVector(int64_t)
+{
+  LogVectorUnavailable(__func__);
+  return false;
+}
+
+std::vector<CVectorSearcher::VectorResult> CVectorSearcher::SearchSimilar(
+    const std::array<float, 384>&,
+    int)
+{
+  LogVectorUnavailable(__func__);
+  return {};
+}
+
+int64_t CVectorSearcher::GetVectorCount()
+{
+  return 0;
+}
+
+bool CVectorSearcher::ClearAllVectors()
+{
+  LogVectorUnavailable(__func__);
+  return false;
+}
+
+bool CVectorSearcher::InsertVectorBatch(
+    const std::vector<std::pair<int64_t, std::array<float, 384>>>&)
+{
+  LogVectorUnavailable(__func__);
+  return false;
+}
+
+bool CVectorSearcher::DeleteVectorBatch(const std::vector<int64_t>&)
+{
+  LogVectorUnavailable(__func__);
+  return false;
+}
+
+std::vector<CVectorSearcher::VectorResult> CVectorSearcher::SearchSimilarFiltered(
+    const std::array<float, 384>&,
+    const std::vector<int64_t>&,
+    int)
+{
+  LogVectorUnavailable(__func__);
+  return {};
+}
+
+std::vector<CVectorSearcher::VectorResult> CVectorSearcher::SearchSimilarByMediaType(
+    const std::array<float, 384>&,
+    const std::string&,
+    int)
+{
+  LogVectorUnavailable(__func__);
+  return {};
+}
+
+std::vector<CVectorSearcher::VectorResult> CVectorSearcher::FindSimilar(int64_t, int, float)
+{
+  LogVectorUnavailable(__func__);
+  return {};
+}
+
+CVectorSearcher::VectorStats CVectorSearcher::GetStats()
+{
+  return {};
+}
+
+bool CVectorSearcher::RebuildIndex()
+{
+  LogVectorUnavailable(__func__);
+  return false;
+}
+
+int CVectorSearcher::ValidateIntegrity()
+{
+  LogVectorUnavailable(__func__);
+  return 0;
+}
+
+int CVectorSearcher::CleanupOrphanedVectors()
+{
+  LogVectorUnavailable(__func__);
+  return 0;
+}
+
+bool CVectorSearcher::GetVector(int64_t, std::array<float, 384>&)
+{
+  LogVectorUnavailable(__func__);
+  return false;
+}
+
+} // namespace SEMANTIC
+} // namespace KODI
+
+#endif

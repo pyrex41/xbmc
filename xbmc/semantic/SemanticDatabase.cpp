@@ -17,7 +17,13 @@
 #include "utils/StringUtils.h"
 #include "utils/log.h"
 
+#ifndef HAVE_SQLITE_VEC
+#define HAVE_SQLITE_VEC 0
+#endif
+
+#if HAVE_SQLITE_VEC
 #include <sqlite3.h>
+#endif
 
 using namespace KODI::SEMANTIC;
 using namespace dbiplus;
@@ -1096,6 +1102,11 @@ bool CSemanticDatabase::RollbackTransaction()
 
 bool CSemanticDatabase::CreateVectorTables()
 {
+#if !HAVE_SQLITE_VEC
+  CLog::Log(LOGWARNING,
+            "SemanticDatabase: sqlite-vec support not available; vector tables will not be created");
+  return false;
+#else
   CLog::Log(LOGINFO, "SemanticDatabase: Creating vector tables");
 
   try
@@ -1165,10 +1176,15 @@ bool CSemanticDatabase::CreateVectorTables()
     CLog::LogF(LOGERROR, "Exception while creating vector tables");
     return false;
   }
+#endif
 }
 
 bool CSemanticDatabase::InsertEmbedding(int64_t chunkId, const std::array<float, 384>& embedding)
 {
+#if !HAVE_SQLITE_VEC
+  CLog::Log(LOGDEBUG, "SemanticDatabase: InsertEmbedding skipped - sqlite-vec disabled");
+  return false;
+#else
   try
   {
     if (!m_vectorSearcher)
@@ -1206,10 +1222,15 @@ bool CSemanticDatabase::InsertEmbedding(int64_t chunkId, const std::array<float,
     CLog::LogF(LOGERROR, "Failed to insert embedding for chunk {}", chunkId);
   }
   return false;
+#endif
 }
 
 bool CSemanticDatabase::DeleteEmbedding(int64_t chunkId)
 {
+#if !HAVE_SQLITE_VEC
+  CLog::Log(LOGDEBUG, "SemanticDatabase: DeleteEmbedding skipped - sqlite-vec disabled");
+  return false;
+#else
   try
   {
     if (!m_vectorSearcher)
@@ -1229,10 +1250,14 @@ bool CSemanticDatabase::DeleteEmbedding(int64_t chunkId)
     CLog::LogF(LOGERROR, "Failed to delete embedding for chunk {}", chunkId);
   }
   return false;
+#endif
 }
 
 bool CSemanticDatabase::HasEmbedding(int64_t chunkId)
 {
+#if !HAVE_SQLITE_VEC
+  return false;
+#else
   try
   {
     if (!m_vectorSearcher)
@@ -1256,6 +1281,7 @@ bool CSemanticDatabase::HasEmbedding(int64_t chunkId)
     CLog::LogF(LOGERROR, "Failed to check embedding for chunk {}", chunkId);
   }
   return false;
+#endif
 }
 
 bool CSemanticDatabase::UpdateEmbeddingStatus(int mediaId,
@@ -1264,6 +1290,10 @@ bool CSemanticDatabase::UpdateEmbeddingStatus(int mediaId,
                                                float progress,
                                                const std::string& error)
 {
+#if !HAVE_SQLITE_VEC
+  CLog::Log(LOGDEBUG, "SemanticDatabase: UpdateEmbeddingStatus skipped - sqlite-vec disabled");
+  return false;
+#else
   try
   {
     if (m_pDB == nullptr || m_pDS == nullptr)
@@ -1290,12 +1320,17 @@ bool CSemanticDatabase::UpdateEmbeddingStatus(int mediaId,
     CLog::LogF(LOGERROR, "Failed to update embedding status for media {} ({})", mediaId, mediaType);
   }
   return false;
+#endif
 }
 
 std::vector<VectorSearchResult> CSemanticDatabase::SearchSimilar(
     const std::array<float, 384>& queryEmbedding,
     int topK)
 {
+#if !HAVE_SQLITE_VEC
+  CLog::Log(LOGDEBUG, "SemanticDatabase: Vector search unavailable - sqlite-vec disabled");
+  return {};
+#else
   std::vector<VectorSearchResult> results;
 
   try
@@ -1327,10 +1362,14 @@ std::vector<VectorSearchResult> CSemanticDatabase::SearchSimilar(
   }
 
   return results;
+#endif
 }
 
 int64_t CSemanticDatabase::GetEmbeddingCount()
 {
+#if !HAVE_SQLITE_VEC
+  return 0;
+#else
   try
   {
     if (!m_vectorSearcher)
@@ -1343,6 +1382,7 @@ int64_t CSemanticDatabase::GetEmbeddingCount()
     CLog::LogF(LOGERROR, "Failed to get embedding count");
   }
   return -1;
+#endif
 }
 
 // ========== Search History Helper Methods ==========

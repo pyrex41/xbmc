@@ -19,7 +19,11 @@
 #include <stdexcept>
 #include <thread>
 
-#ifdef HAS_ONNXRUNTIME
+#ifndef HAS_ONNXRUNTIME
+#define HAS_ONNXRUNTIME 0
+#endif
+
+#if HAS_ONNXRUNTIME
 #include <onnxruntime_cxx_api.h>
 #endif
 
@@ -39,7 +43,7 @@ public:
     UnloadModel();
   }
 
-#ifdef HAS_ONNXRUNTIME
+#if HAS_ONNXRUNTIME
   // ONNX Runtime environment and session
   Ort::Env m_env{ORT_LOGGING_LEVEL_WARNING, "SemanticEmbedding"};
   std::unique_ptr<Ort::Session> m_session;
@@ -73,7 +77,7 @@ public:
 
   void StartIdleTimer()
   {
-#ifdef HAS_ONNXRUNTIME
+#if HAS_ONNXRUNTIME
     if (m_idleTimeoutSec <= 0)
       return;
 
@@ -103,7 +107,7 @@ public:
 
   void StopIdleTimer()
   {
-#ifdef HAS_ONNXRUNTIME
+#if HAS_ONNXRUNTIME
     m_stopTimer.store(true);
     if (m_idleTimer.joinable())
     {
@@ -114,7 +118,7 @@ public:
 
   void UpdateLastUsed()
   {
-#ifdef HAS_ONNXRUNTIME
+#if HAS_ONNXRUNTIME
     m_lastUsed = std::chrono::steady_clock::now();
 #endif
   }
@@ -125,7 +129,7 @@ public:
                   int idleTimeoutSec,
                   bool enableGPU)
   {
-#ifdef HAS_ONNXRUNTIME
+#if HAS_ONNXRUNTIME
     m_modelPath = modelPath;
     m_vocabPath = vocabPath;
     m_lazyLoad = lazyLoad;
@@ -229,7 +233,7 @@ public:
 
   bool LoadModel()
   {
-#ifdef HAS_ONNXRUNTIME
+#if HAS_ONNXRUNTIME
     if (m_modelLoaded)
       return true;
 
@@ -314,7 +318,7 @@ public:
 
   void UnloadModel()
   {
-#ifdef HAS_ONNXRUNTIME
+#if HAS_ONNXRUNTIME
     if (!m_modelLoaded)
       return;
 
@@ -347,7 +351,7 @@ public:
 
   bool IsInitialized() const
   {
-#ifdef HAS_ONNXRUNTIME
+#if HAS_ONNXRUNTIME
     return m_initialized;
 #else
     return false;
@@ -356,7 +360,7 @@ public:
 
   bool IsModelLoaded() const
   {
-#ifdef HAS_ONNXRUNTIME
+#if HAS_ONNXRUNTIME
     return m_modelLoaded;
 #else
     return false;
@@ -365,7 +369,7 @@ public:
 
   Embedding Embed(const std::string& text)
   {
-#ifdef HAS_ONNXRUNTIME
+#if HAS_ONNXRUNTIME
     auto batch = EmbedBatch({text});
     return batch.empty() ? Embedding{} : batch[0];
 #else
@@ -376,7 +380,7 @@ public:
 
   std::vector<Embedding> EmbedBatch(const std::vector<std::string>& texts)
   {
-#ifdef HAS_ONNXRUNTIME
+#if HAS_ONNXRUNTIME
     if (!m_initialized || texts.empty())
       return {};
 
@@ -635,7 +639,7 @@ float CEmbeddingEngine::Similarity(const Embedding& a, const Embedding& b)
 
 bool CEmbeddingEngine::IsGPUEnabled() const
 {
-#ifdef HAS_ONNXRUNTIME
+#if HAS_ONNXRUNTIME
   return m_impl->m_gpuAccelerator && m_impl->m_gpuAccelerator->IsAvailable();
 #else
   return false;
@@ -644,7 +648,7 @@ bool CEmbeddingEngine::IsGPUEnabled() const
 
 std::string CEmbeddingEngine::GetGPUStatus() const
 {
-#ifdef HAS_ONNXRUNTIME
+#if HAS_ONNXRUNTIME
   if (!m_impl->m_gpuAccelerator)
   {
     return "GPU acceleration not initialized";
@@ -657,7 +661,7 @@ std::string CEmbeddingEngine::GetGPUStatus() const
 
 int CEmbeddingEngine::GetOptimalBatchSize() const
 {
-#ifdef HAS_ONNXRUNTIME
+#if HAS_ONNXRUNTIME
   if (m_impl->m_gpuAccelerator && m_impl->m_gpuAccelerator->IsAvailable())
   {
     return m_impl->m_gpuAccelerator->GetOptimalBatchSize();

@@ -76,13 +76,13 @@ bool CMultilingualEngine::Initialize(const std::string& modelBasePath)
 
     // Check if multilingual mode is enabled in settings
     m_multilingualEnabled = CServiceBroker::GetSettingsComponent()->GetSettings()->GetBool(
-        "semantic.multilingual.enabled");
+        CSettings::SETTING_SEMANTIC_MULTILINGUAL_ENABLED);
 
     // Load default model if multilingual is enabled
     if (m_multilingualEnabled)
     {
       std::string defaultModel = CServiceBroker::GetSettingsComponent()->GetSettings()->GetString(
-          "semantic.multilingual.model");
+          CSettings::SETTING_SEMANTIC_MULTILINGUAL_MODEL);
 
       if (defaultModel.empty())
       {

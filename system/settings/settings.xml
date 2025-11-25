@@ -1753,6 +1753,23 @@
           <control type="toggle" />
         </setting>
       </group>
+
+      <group id="4" label="39530">  <!-- "Multilingual" -->
+        <setting id="semanticsearch.multilingual.enabled" type="boolean" label="39531" help="39532">
+          <level>1</level>
+          <default>false</default>
+          <control type="toggle" />
+        </setting>
+
+        <setting id="semanticsearch.multilingual.model" type="string" label="39533" help="39534">
+          <level>1</level>
+          <default>paraphrase-multilingual-MiniLM-L12-v2</default>
+          <constraints>
+            <allowempty>false</allowempty>
+          </constraints>
+          <control type="edit" format="string" />
+        </setting>
+      </group>
     </category>
   </section>
   <section id="pvr" label="14204" help="36201">

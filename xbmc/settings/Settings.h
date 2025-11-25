@@ -72,6 +72,10 @@ public:
   static constexpr auto SETTING_SEMANTIC_MAXCOST = "semanticsearch.maxcost";
   static constexpr auto SETTING_SEMANTIC_INDEX_SUBTITLES = "semanticsearch.index.subtitles";
   static constexpr auto SETTING_SEMANTIC_INDEX_METADATA = "semanticsearch.index.metadata";
+  static constexpr auto SETTING_SEMANTIC_MULTILINGUAL_ENABLED =
+      "semanticsearch.multilingual.enabled";
+  static constexpr auto SETTING_SEMANTIC_MULTILINGUAL_MODEL =
+      "semanticsearch.multilingual.model";
   static constexpr auto SETTING_WINDOW_WIDTH = "window.width";
   static constexpr auto SETTING_WINDOW_HEIGHT = "window.height";
   static constexpr auto SETTING_VIDEOLIBRARY_SHOWUNWATCHEDPLOTS = "videolibrary.showunwatchedplots";

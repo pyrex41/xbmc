@@ -17,6 +17,10 @@
 #include <string>
 #include <vector>
 
+#ifndef HAVE_SQLITE_VEC
+#define HAVE_SQLITE_VEC 0
+#endif
+
 namespace KODI
 {
 namespace SEMANTIC
