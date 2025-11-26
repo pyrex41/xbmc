@@ -233,18 +233,11 @@ void CSemanticDatabase::UpdateTables(int version)
 
       CLog::Log(LOGINFO, "SemanticDatabase: Added embedding columns to semantic_index_state");
 
-      // Create vector tables
       if (CreateVectorTables())
       {
         CLog::Log(LOGINFO, "SemanticDatabase: Successfully migrated to version 2");
       }
-      else
-      {
-        CLog::Log(LOGWARNING,
-                  "SemanticDatabase: Migration to version 2 completed but vector tables could not "
-                  "be initialized");
-      }
-    }
+  }
     catch (...)
     {
       CLog::LogF(LOGERROR, "Failed to migrate to version 2");
