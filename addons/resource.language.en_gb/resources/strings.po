@@ -21258,6 +21258,27 @@ msgctxt "#36388"
 msgid "Turn off display when idle. Useful for TVs that turn off when there is no display signal detected."
 msgstr ""
 
+# Semantic Search - Multilingual settings
+msgctxt "#39530"
+msgid "Multilingual"
+msgstr "Multilingual"
+
+msgctxt "#39531"
+msgid "Enable multilingual search"
+msgstr "Enable multilingual search"
+
+msgctxt "#39532"
+msgid "Use cross-language embeddings to search media in any language."
+msgstr "Use cross-language embeddings to search media in any language."
+
+msgctxt "#39533"
+msgid "Default multilingual model"
+msgstr "Default multilingual model"
+
+msgctxt "#39534"
+msgid "Model identifier (e.g. paraphrase-multilingual-MiniLM-L12-v2)."
+msgstr "Model identifier (e.g. paraphrase-multilingual-MiniLM-L12-v2)."
+
 #. Description of setting with label #357 "Shutdown function timer"
 #: system/settings/settings.xml
 msgctxt "#36389"
