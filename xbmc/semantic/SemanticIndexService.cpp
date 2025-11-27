@@ -112,8 +112,10 @@ bool CSemanticIndexService::Start()
 
   CLog::Log(LOGINFO, "SemanticIndexService: Started successfully (mode: {})", m_processMode);
 
-  // Queue any pending items if auto-indexing is enabled
-  if (m_autoIndex)
+  // Queue any pending items only for "background" mode (immediate processing)
+  // For "idle" mode, items will be queued on library updates when user becomes idle
+  // For "manual" mode, items must be explicitly queued via API
+  if (StringUtils::EqualsNoCase(m_processMode, "background"))
   {
     QueueAllUnindexed();
   }
@@ -414,21 +416,27 @@ void CSemanticIndexService::OnSettingChanged(const std::shared_ptr<const CSettin
   }
   else if (settingId == CSettings::SETTING_SEMANTIC_PROCESSMODE)
   {
-    bool previousAutoIndex;
     bool shouldQueueAll = false;
     {
       // Protect m_processMode access - it's read by processing thread in ShouldProcessNow()
       std::lock_guard<std::mutex> lock(m_queueMutex);
+      std::string previousMode = m_processMode;
       m_processMode = std::static_pointer_cast<const CSettingString>(setting)->GetValue();
       CLog::Log(LOGINFO, "SemanticIndexService: Process mode changed to: {}", m_processMode);
-      previousAutoIndex = m_autoIndex;
+
+      // m_autoIndex controls whether library updates trigger queueing
+      // Both "idle" and "background" modes respond to library updates
       m_autoIndex = !StringUtils::EqualsNoCase(m_processMode, "manual");
-      shouldQueueAll = m_autoIndex && !previousAutoIndex;
+
+      // Only queue all unindexed items when switching TO "background" mode
+      // (immediate processing mode). "idle" mode waits for library updates.
+      shouldQueueAll = StringUtils::EqualsNoCase(m_processMode, "background") &&
+                       !StringUtils::EqualsNoCase(previousMode, "background");
     }
 
     if (shouldQueueAll)
     {
-      CLog::Log(LOGINFO, "SemanticIndexService: Auto-index enabled via process mode");
+      CLog::Log(LOGINFO, "SemanticIndexService: Background mode enabled - queueing all unindexed");
       QueueAllUnindexed();
     }
 
@@ -989,6 +997,9 @@ bool CSemanticIndexService::StartTranscription(int mediaId, const std::string& m
   if (!extractor.ExtractAudio(mediaPath, audioPath))
   {
     CLog::Log(LOGERROR, "SemanticIndexService: Failed to extract audio from {}", mediaPath);
+    // Clean up temp audio file if it was partially created
+    if (XFILE::CFile::Exists(audioPath))
+      XFILE::CFile::Delete(audioPath);
     if (m_database->GetIndexState(mediaId, mediaType, state))
     {
       state.transcriptionStatus = IndexStatus::FAILED;

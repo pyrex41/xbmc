@@ -23,6 +23,7 @@
 #include "video/VideoDatabase.h"
 
 #include <chrono>
+#include <mutex>
 
 using namespace JSONRPC;
 using namespace KODI::SEMANTIC;
@@ -44,37 +45,56 @@ std::string FormatTimestamp(int64_t milliseconds)
                              static_cast<int>(ms));
 }
 
-// Static instances shared across all operations
+// Thread-safe static instance management
+// Using heap allocation to avoid static destruction order issues
+static std::mutex s_dbMutex;
 static CSemanticDatabase* s_database = nullptr;
+static CSemanticDatabase* s_fallbackDatabase = nullptr; // Heap-allocated fallback (leaked intentionally)
+
+static std::mutex s_searchMutex;
 static CSemanticSearch* s_search = nullptr;
-static bool s_initialized = false;
+static CSemanticSearch* s_fallbackSearch = nullptr; // Heap-allocated fallback (leaked intentionally)
 
 /*!
  * \brief Initialize or get the semantic database instance
+ * \note Thread-safe. Uses heap allocation for fallback to avoid static destruction order issues.
  */
 CSemanticDatabase* GetSemanticDatabase()
 {
-  if (!s_initialized)
-  {
-    // Try to get from SemanticIndexService first (preferred)
-    auto* service = CServiceBroker::GetSemanticIndexService();
-    if (service && service->IsRunning())
-    {
-      s_database = service->GetDatabase();
-      if (s_database)
-      {
-        s_initialized = true;
-        return s_database;
-      }
-    }
+  std::lock_guard<std::mutex> lock(s_dbMutex);
 
-    // Fallback: create own instance
-    static CSemanticDatabase fallbackDb;
-    if (fallbackDb.Open())
+  // Try to get from SemanticIndexService first (preferred)
+  auto* service = CServiceBroker::GetSemanticIndexService();
+  if (service && service->IsRunning())
+  {
+    auto* serviceDb = service->GetDatabase();
+    if (serviceDb)
     {
-      s_database = &fallbackDb;
-      s_initialized = true;
+      s_database = serviceDb;
+      return s_database;
     }
+  }
+
+  // Fallback: create own instance on heap (intentionally leaked to avoid
+  // static destruction order issues - this is safer than using a static local)
+  if (!s_fallbackDatabase)
+  {
+    s_fallbackDatabase = new CSemanticDatabase();
+    if (s_fallbackDatabase->Open())
+    {
+      s_database = s_fallbackDatabase;
+      CLog::Log(LOGINFO, "SemanticOperations: Created fallback database instance");
+    }
+    else
+    {
+      delete s_fallbackDatabase;
+      s_fallbackDatabase = nullptr;
+      CLog::Log(LOGERROR, "SemanticOperations: Failed to open fallback database");
+    }
+  }
+  else
+  {
+    s_database = s_fallbackDatabase;
   }
 
   return s_database;
@@ -82,27 +102,40 @@ CSemanticDatabase* GetSemanticDatabase()
 
 /*!
  * \brief Get semantic search instance
+ * \note Thread-safe. Uses heap allocation for fallback to avoid static destruction order issues.
  */
 CSemanticSearch* GetSemanticSearch()
 {
-  static bool searchInitialized = false;
-  static CSemanticSearch search;
+  std::lock_guard<std::mutex> lock(s_searchMutex);
 
-  if (!searchInitialized)
+  // If we already have a valid search instance, return it
+  if (s_search)
+    return s_search;
+
+  CLog::Log(LOGINFO, "SemanticOperations: Initializing SemanticSearch...");
+
+  auto* database = GetSemanticDatabase();
+  if (!database)
   {
-    CLog::Log(LOGINFO, "SemanticOperations: Initializing SemanticSearch...");
-    auto* database = GetSemanticDatabase();
-    if (database && search.Initialize(database))
-    {
-      s_search = &search;
-      searchInitialized = true;
-      CLog::Log(LOGINFO, "SemanticOperations: SemanticSearch initialized successfully");
-    }
-    else
-    {
-      CLog::Log(LOGERROR, "SemanticOperations: Failed to initialize SemanticSearch (db={})",
-                database ? "available" : "null");
-    }
+    CLog::Log(LOGERROR, "SemanticOperations: Failed to initialize SemanticSearch (db=null)");
+    return nullptr;
+  }
+
+  // Create search instance on heap (intentionally leaked to avoid
+  // static destruction order issues)
+  if (!s_fallbackSearch)
+  {
+    s_fallbackSearch = new CSemanticSearch();
+  }
+
+  if (s_fallbackSearch->Initialize(database))
+  {
+    s_search = s_fallbackSearch;
+    CLog::Log(LOGINFO, "SemanticOperations: SemanticSearch initialized successfully");
+  }
+  else
+  {
+    CLog::Log(LOGERROR, "SemanticOperations: Failed to initialize SemanticSearch");
   }
 
   return s_search;

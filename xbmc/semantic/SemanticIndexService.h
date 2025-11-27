@@ -152,13 +152,25 @@ public:
    * @brief Get the semantic database instance
    * @return Pointer to the database, or nullptr if not initialized
    */
-  CSemanticDatabase* GetDatabase() const { return m_database.get(); }
+  CSemanticDatabase* GetDatabase() { return m_database.get(); }
+
+  /*!
+   * @brief Get the semantic database instance (const version)
+   * @return Const pointer to the database, or nullptr if not initialized
+   */
+  const CSemanticDatabase* GetDatabase() const { return m_database.get(); }
 
   /*!
    * @brief Get the transcription provider manager
    * @return Pointer to the provider manager, or nullptr if not initialized
    */
-  CTranscriptionProviderManager* GetTranscriptionManager() const { return m_transcriptionManager.get(); }
+  CTranscriptionProviderManager* GetTranscriptionManager() { return m_transcriptionManager.get(); }
+
+  /*!
+   * @brief Get the transcription provider manager (const version)
+   * @return Const pointer to the provider manager, or nullptr if not initialized
+   */
+  const CTranscriptionProviderManager* GetTranscriptionManager() const { return m_transcriptionManager.get(); }
 
   // ========== Callbacks ==========
 

@@ -19,6 +19,59 @@
 using namespace KODI::SEMANTIC;
 using namespace dbiplus;
 
+namespace
+{
+/*!
+ * \brief Escape a string for safe use in FTS5 MATCH queries
+ *
+ * FTS5 has special characters and operators that could cause issues.
+ * This function escapes each token appropriately:
+ * - Tokens with wildcards (*) are left unquoted to preserve prefix matching
+ * - Tokens without wildcards are wrapped in quotes for exact matching
+ * - Internal double quotes are escaped by doubling them
+ *
+ * \param query The raw user-provided search query
+ * \return Escaped query safe for FTS5 MATCH clause
+ */
+std::string EscapeFTS5Query(const std::string& query)
+{
+  if (query.empty())
+    return query;
+
+  // Split query into tokens
+  std::vector<std::string> tokens = StringUtils::Split(query, " ");
+  std::vector<std::string> escapedTokens;
+
+  for (const auto& token : tokens)
+  {
+    if (token.empty())
+      continue;
+
+    // Check if token contains wildcard
+    bool hasWildcard = (token.find('*') != std::string::npos);
+
+    // Escape internal double quotes by doubling them
+    std::string escaped = token;
+    StringUtils::Replace(escaped, "\"", "\"\"");
+
+    if (hasWildcard)
+    {
+      // Keep wildcards functional - don't wrap in quotes
+      // Just escape quotes and pass through
+      escapedTokens.push_back(escaped);
+    }
+    else
+    {
+      // Wrap non-wildcard tokens in quotes to prevent operator injection
+      // This prevents AND/OR/NOT/NEAR from being interpreted as operators
+      escapedTokens.push_back("\"" + escaped + "\"");
+    }
+  }
+
+  return StringUtils::Join(escapedTokens, " ");
+}
+} // anonymous namespace
+
 CSemanticDatabase::CSemanticDatabase() = default;
 
 CSemanticDatabase::~CSemanticDatabase() = default;
@@ -567,6 +620,9 @@ bool CSemanticDatabase::SearchChunks(const std::string& searchQuery,
 
     chunks.clear();
 
+    // Escape query for FTS5 to prevent injection attacks
+    std::string escapedQuery = EscapeFTS5Query(searchQuery);
+
     // Use FTS5 for full-text search
     std::string sql = PrepareSQL(
         "SELECT c.* FROM semantic_chunks c "
@@ -574,7 +630,7 @@ bool CSemanticDatabase::SearchChunks(const std::string& searchQuery,
         "WHERE semantic_fts MATCH '%s' "
         "ORDER BY rank "
         "LIMIT %i",
-        searchQuery.c_str(), limit);
+        escapedQuery.c_str(), limit);
 
     if (!m_pDS->query(sql))
       return false;
@@ -795,10 +851,13 @@ std::vector<SearchResult> CSemanticDatabase::SearchChunks(const std::string& que
     if (options.minConfidence > 0.0f)
       whereClause += PrepareSQL(" AND c.confidence >= %f", static_cast<double>(options.minConfidence));
 
+    // Escape query for FTS5 to prevent injection attacks
+    std::string escapedQuery = EscapeFTS5Query(query);
+
     // Use FTS5 with BM25 ranking
     // Note: whereClause is already properly escaped via PrepareSQL, so we use
     // StringUtils::Format to avoid double-escaping the quotes
-    std::string matchClause = PrepareSQL("WHERE semantic_fts MATCH '%s'", query.c_str());
+    std::string matchClause = PrepareSQL("WHERE semantic_fts MATCH '%s'", escapedQuery.c_str());
     std::string sql = StringUtils::Format(
         "SELECT c.*, bm25(semantic_fts) as score "
         "FROM semantic_fts f "
@@ -856,13 +915,16 @@ std::string CSemanticDatabase::GetSnippet(const std::string& query,
     if (m_pDB == nullptr || m_pDS == nullptr)
       return "";
 
+    // Escape query for FTS5 to prevent injection attacks
+    std::string escapedQuery = EscapeFTS5Query(query);
+
     // Use FTS5 snippet() function: snippet(table, column, start, end, ellipsis, maxTokens)
     std::string sql = PrepareSQL(
         "SELECT snippet(semantic_fts, 0, '<b>', '</b>', '...', %i) as snippet "
         "FROM semantic_fts f "
         "JOIN semantic_chunks c ON f.rowid = c.chunk_id "
         "WHERE c.chunk_id = %lld AND semantic_fts MATCH '%s'",
-        snippetLength, static_cast<long long>(chunkId), query.c_str());
+        snippetLength, static_cast<long long>(chunkId), escapedQuery.c_str());
 
     if (!m_pDS->query(sql))
       return "";
