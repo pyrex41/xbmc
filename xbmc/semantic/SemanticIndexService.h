@@ -8,10 +8,12 @@
 
 #pragma once
 
+#include "dbwrappers/dataset.h"
 #include "interfaces/IAnnouncer.h"
 #include "jobs/IJobCallback.h"
 #include "settings/lib/ISettingCallback.h"
 #include "threads/Thread.h"
+#include "video/VideoDatabase.h"
 
 #include <atomic>
 #include <condition_variable>
@@ -67,6 +69,11 @@ public:
    * Stops the background thread, saves state, and unregisters callbacks.
    */
   void Stop();
+
+  /*!
+   * @brief Ensure settings callbacks are registered even if the service is stopped
+   */
+  void EnsureSettingsCallback();
 
   /*!
    * @brief Check if the service is running
@@ -140,6 +147,30 @@ public:
    * @return Queue length
    */
   int GetQueueLength() const;
+
+  /*!
+   * @brief Get the semantic database instance
+   * @return Pointer to the database, or nullptr if not initialized
+   */
+  CSemanticDatabase* GetDatabase() { return m_database.get(); }
+
+  /*!
+   * @brief Get the semantic database instance (const version)
+   * @return Const pointer to the database, or nullptr if not initialized
+   */
+  const CSemanticDatabase* GetDatabase() const { return m_database.get(); }
+
+  /*!
+   * @brief Get the transcription provider manager
+   * @return Pointer to the provider manager, or nullptr if not initialized
+   */
+  CTranscriptionProviderManager* GetTranscriptionManager() { return m_transcriptionManager.get(); }
+
+  /*!
+   * @brief Get the transcription provider manager (const version)
+   * @return Const pointer to the provider manager, or nullptr if not initialized
+   */
+  const CTranscriptionProviderManager* GetTranscriptionManager() const { return m_transcriptionManager.get(); }
 
   // ========== Callbacks ==========
 
@@ -267,6 +298,9 @@ private:
    * @return File path, or empty string on error
    */
   std::string GetMediaPath(int mediaId, const std::string& mediaType);
+  std::string GetMediaPathFromDatabase(CVideoDatabase& videoDb,
+                                       int mediaId,
+                                       const std::string& mediaType);
 
   /*!
    * @brief Check if item is already in queue
@@ -283,6 +317,15 @@ private:
    */
   void RemoveFromQueue(int mediaId, const std::string& mediaType);
 
+  /*!
+   * @brief Ensure semantic_index_state rows exist for all library items
+   */
+  void SeedMissingIndexStates();
+  std::vector<int> GetMissingMediaIds(const std::string& mediaType,
+                                      const std::string& viewName,
+                                      const std::string& idColumn);
+  void EnsureIndexState(int mediaId, const std::string& mediaType, const std::string& mediaPath);
+
   // ========== Member Variables ==========
 
   // Core components
@@ -293,7 +336,7 @@ private:
 
   // Thread control
   std::atomic<bool> m_running{false};
-  std::mutex m_queueMutex;
+  mutable std::mutex m_queueMutex;
   std::condition_variable m_queueCondition;
 
   // Processing queue (priority queue - higher priority items first)
@@ -307,6 +350,7 @@ private:
   // Settings cache
   std::string m_processMode; // "manual", "idle", "background"
   bool m_autoIndex{true};
+  bool m_callbacksRegistered{false};
 };
 
 } // namespace SEMANTIC
